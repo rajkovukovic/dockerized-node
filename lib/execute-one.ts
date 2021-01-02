@@ -1,32 +1,24 @@
-#!/usr/bin/env -S deno run --allow-net --allow-read --allow-run
-// Copyright 2021-2021 @rajkovukovic
-
-// This program safely runs node command inside a Docker container
-
 import { assert } from "https://deno.land/std@0.83.0/_util/assert.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 
-import { Settings } from "./lib/settings.ts";
-import { ALLOWED_COMMANDS, generateDocker } from "./lib/generate-docker.ts";
-import { addWorkingDir } from "./lib/cli-commands.ts";
+import { Settings } from "./settings.ts";
+import { ALLOWED_COMMANDS, generateDocker } from "./generate-docker.ts";
+import { addWorkingDir } from "./cli-commands.ts";
 
-/**
- * commans = Deno.args[0]
- * commandArguments = Deno.args.slice(1)
- */
-export async function executeCommand() {
-  const command = Deno.args[0];
-  const commandArguments = Deno.args.slice(1);
-
+export async function executeOne(
+  command: string,
+  commandArguments: string[],
+) {
   assert(
     ALLOWED_COMMANDS.includes(command),
   );
 
   let nodeVersion = "latest";
+  let commandArgumentsClone = commandArguments.slice(0);
 
   if (commandArguments.length > 0 && commandArguments[0].startsWith("@")) {
     nodeVersion = commandArguments[0].slice(1);
-    commandArguments.shift();
+    commandArgumentsClone.shift();
   }
 
   if (!Settings.hasWorkingDir(Deno.cwd())) {
@@ -49,9 +41,9 @@ export async function executeCommand() {
   const dockerComposeFileContent = generateDocker({
     nodeVersion,
     command,
-    commandArguments: Array.isArray(commandArguments)
-      ? commandArguments.join(" ")
-      : commandArguments,
+    commandArguments: Array.isArray(commandArgumentsClone)
+      ? commandArgumentsClone.join(" ")
+      : commandArgumentsClone,
   });
 
   const denoFile = Deno.createSync(dockerComposeFile);
@@ -69,5 +61,3 @@ export async function executeCommand() {
 
   await dockerProcess.status();
 }
-
-executeCommand();
